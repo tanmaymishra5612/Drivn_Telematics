@@ -22,10 +22,22 @@ type SortKey = keyof Pick<
 export function VehicleTable({ vehicles, showType = false }: { vehicles: VehicleRecord[]; showType?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<1 | -1>(1)
+  const [search, setSearch] = useState("")
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return vehicles
+    const q = search.trim().toLowerCase()
+    return vehicles.filter(
+      (v) =>
+        v.plate.toLowerCase().includes(q) ||
+        v.customer.toLowerCase().includes(q) ||
+        v.vehicle_model.toLowerCase().includes(q)
+    )
+  }, [vehicles, search])
 
   const rows = useMemo(() => {
-    if (!sortKey) return vehicles
-    const copy = [...vehicles]
+    if (!sortKey) return filtered
+    const copy = [...filtered]
     copy.sort((a, b) => {
       const av = a[sortKey]
       const bv = b[sortKey]
@@ -37,7 +49,7 @@ export function VehicleTable({ vehicles, showType = false }: { vehicles: Vehicle
       return sortDir * (an - bn)
     })
     return copy
-  }, [vehicles, sortKey, sortDir])
+  }, [filtered, sortKey, sortDir])
 
   function headerClick(key: SortKey) {
     if (sortKey === key) {
@@ -50,6 +62,38 @@ export function VehicleTable({ vehicles, showType = false }: { vehicles: Vehicle
 
   return (
     <div className="table-container">
+      <div
+        className="table-toolbar"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ position: "relative", minWidth: "260px", maxWidth: "380px", flex: 1 }}>
+          <input
+            type="search"
+            placeholder="Search license plate, model, customer..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.45rem 0.75rem",
+              borderRadius: "6px",
+              border: "1px solid var(--border-strong)",
+              background: "var(--bg-surface)",
+              color: "var(--text-primary)",
+              fontSize: "0.85rem",
+            }}
+          />
+        </div>
+        <div className="muted" style={{ fontSize: "0.8rem" }}>
+          {search.trim() ? `Showing ${rows.length} of ${vehicles.length} vehicles` : `${vehicles.length} vehicles`}
+        </div>
+      </div>
       <table>
         <thead>
           <tr>

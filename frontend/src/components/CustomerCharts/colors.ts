@@ -4,10 +4,15 @@ import type { CustomerName } from "../../api/types"
 // with backend/metrics.py's _CUSTOMER_REGISTRY.
 export const ALL_CUSTOMERS: CustomerName[] = [
   "FreshBus", "ZingBus", "BillionE", "AVG LOGISTICS", "SWITCHLABS",
+  "Purple Mobility", "Enviiirowheels", "Flytta",
 ]
 
+export const BUS_CUSTOMERS: ReadonlySet<CustomerName> = new Set([
+  "FreshBus", "ZingBus", "Purple Mobility",
+])
+
 export const TRUCK_CUSTOMERS: ReadonlySet<CustomerName> = new Set([
-  "BillionE", "AVG LOGISTICS", "SWITCHLABS",
+  "BillionE", "AVG LOGISTICS", "SWITCHLABS", "Enviiirowheels", "Flytta",
 ])
 
 export const CUSTOMER_COLORS: Record<CustomerName, string> = {
@@ -16,6 +21,9 @@ export const CUSTOMER_COLORS: Record<CustomerName, string> = {
   BillionE: "#d97706",
   "AVG LOGISTICS": "#9333ea",
   SWITCHLABS: "#dc2626",
+  "Purple Mobility": "#8b5cf6",
+  Enviiirowheels: "#059669",
+  Flytta: "#ea580c",
 }
 
 export const PLOT_LAYOUT_BASE = {

@@ -54,6 +54,8 @@ SHEET_OPERATORS = {
     "FRESHBUS": "FreshBus",
     "ZINGBUS": "ZingBus",
     "SWITCHLABS": "SWITCHLABS",
+    "FLYTTA": "Flytta",
+    "ENVIIIRO": "Enviiirowheels",
 }
 
 OPERATOR_COLUMN = "Operator"

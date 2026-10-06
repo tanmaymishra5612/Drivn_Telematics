@@ -51,6 +51,9 @@ _CUSTOMER_REGISTRY = [
     _CustomerConfig("BillionE", "Truck"),
     _CustomerConfig("AVG LOGISTICS", "Truck"),
     _CustomerConfig("SWITCHLABS", "Truck"),
+    _CustomerConfig("Purple Mobility", "Bus"),
+    _CustomerConfig("Enviiirowheels", "Truck"),
+    _CustomerConfig("Flytta", "Truck"),
 ]
 
 CUSTOMERS = [c.name for c in _CUSTOMER_REGISTRY]

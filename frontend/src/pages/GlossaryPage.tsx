@@ -276,7 +276,9 @@ export function GlossaryPage() {
         <p>
           Data for yesterday lands around 09:00 IST (Fleetx pull at 08:30, odometer repair at 09:00); today is never
           shown. A day's odometer is treated as faulty if a reading is the stuck value, negative or above 15 lakh km, or
-          if it goes backwards or implies 1,500+ km in a day. Faulty days are repaired as follows:
+          if it goes backwards or implies 1,500+ km in a day. A run of days where the odometer repeats the same opening
+          reading and then jumps to catch up is a frozen counter: the jump is checked against 1,500 km a day over the whole
+          run, not the single night, and the run is interpolated. Faulty days are repaired as follows:
         </p>
         <GTable
           head={["Method", "How the km are worked out", "Trust"]}

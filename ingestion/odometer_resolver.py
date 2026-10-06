@@ -7,15 +7,18 @@ which method produced it (fill_method) and how much to trust it (confidence)
 for the column contract, and /home/yogesh/.claude/plans/rustling-munching-spindle.md
 for the analysis that justified the specific thresholds below.
 
-Detection is deliberately row-internal: each day is judged on its own
-Opening/Closing Odometer only. The reported Distance field is not reliable
-enough to judge the odometer by, so no flag uses it (it is still the
+Detection is row-internal, with one exception: each day is judged on its
+own Opening/Closing Odometer only, except that a run of days repeating the
+same Opening that ends in an impossible catch-up jump is recognised as a
+frozen counter and interpolated across (_mark_frozen_stretches). The
+reported Distance field is not reliable enough to judge the odometer by, so no flag uses it (it is still the
 last-resort fallback value for a day no odometer anchor can repair). A
 reading is only discarded outright when it's the known overflow sentinel,
 negative, or past GARBAGE_ABS_THRESHOLD_KM (1.5 million km). Implausibility is
 a single rule applied everywhere: MAX_KM_PER_DAY, per day of the row itself,
 per calendar day of a silent gap between rows, and per calendar day of an
-anchor-to-anchor bracket.
+anchor-to-anchor bracket -- for a frozen counter, the bracket spanning the
+whole frozen stretch rather than the single night of the catch-up.
 
 Known accepted limitation: a "quiet" day sitting inside a multi-day reset,
 whose own Opening/Closing happen to imply a small, internally-plausible delta
@@ -43,7 +46,7 @@ from ingestion.config import Settings
 
 logger = logging.getLogger(__name__)
 
-RESOLVER_VERSION = "2.0.0"
+RESOLVER_VERSION = "2.1.0"
 
 # The device firmware's known counter-overflow bug repeats this exact value
 # (2**21 - 1, a 21-bit rollover) regardless of the vehicle's real odometer --
@@ -62,6 +65,10 @@ GARBAGE_ABS_THRESHOLD_KM = 1_500_000.0
 # it's one row's own Closing - Opening, a silent gap between two rows, or the
 # span between two anchors a bracket of bad days is interpolated across.
 MAX_KM_PER_DAY = 1500.0
+
+# Openings within this of each other count as the same, repeated reading
+# when looking for a frozen counter (see _mark_frozen_stretches).
+FROZEN_TOLERANCE_KM = 1.0
 
 
 def _implausible(km: float, days: float) -> bool:
@@ -115,6 +122,70 @@ def _sanitize(df: pd.DataFrame) -> pd.DataFrame:
     df["anomaly_flags"] = flags
     df["is_raw_valid"] = df["anomaly_flags"].apply(len) == 0
     return df
+
+
+def _pair_rejected(df: pd.DataFrame, a: int, b: int, adjacent: bool) -> bool:
+    """Whether the counter's rise from RAW_VALID row a's Closing to the next
+    RAW_VALID row b's Opening fails MAX_KM_PER_DAY by the rule the rest of
+    the resolver would apply to that pair: per calendar day for adjacent
+    rows (_compute_boundary_gaps), per day strictly between them when bad
+    rows sit in between (_interpolate_between). Drops are never a catch-up."""
+    rise = df.at[b, "opening_sanitized"] - df.at[a, "closing_sanitized"]
+    days = (df.at[b, "Report Date"] - df.at[a, "Report Date"]).days
+    return rise > 0 and _implausible(rise, days if adjacent else days - 1)
+
+
+def _mark_frozen_stretches(df: pd.DataFrame) -> None:
+    """A frozen counter repeats the same Opening Odometer day after day while
+    the bus keeps driving, then catches up in one jump (AP39WN7281: stuck at
+    84,481 km 8-14 Jul 2026, then +4,776 km overnight into 15 Jul). Judged
+    on that one night the jump is impossible, but it is really the km of the
+    whole frozen stretch.
+
+    So when the rise into a RAW_VALID row fails MAX_KM_PER_DAY, walk back
+    over the run of RAW_VALID rows (two or more) repeating the row before
+    it's Opening, and judge the rise from the last RAW_VALID row before that
+    run instead. If that passes, the run is flagged frozen_odometer and made
+    not raw-valid, so the waterfall interpolates it between those two
+    anchors -- split by each day's Distance, keeping the km in the months
+    they were driven. If it fails too (a re-base, e.g. DL1PD9284's +19,783 km
+    on 10 Sep 2026 after normally-moving days), nothing changes. A run
+    repeating 0 is a reset (MH02GS5196 restarts at 0 each day), not a freeze.
+
+    df must be sorted and sanitized as for _compute_boundary_gaps. Mutates
+    anomaly_flags / is_raw_valid in place."""
+    for _, idx in df.groupby("Base License Plate").groups.items():
+        idx = list(idx)
+        valid = [p for p, i in enumerate(idx) if df.at[i, "is_raw_valid"]]
+        k = 1
+        while k < len(valid):
+            pa, pb = valid[k - 1], valid[k]
+            a, b = idx[pa], idx[pb]
+            if not _pair_rejected(df, a, b, adjacent=pb == pa + 1):
+                k += 1
+                continue
+            stuck = df.at[a, "opening_sanitized"]
+            start = pa
+            while (
+                start > 0
+                and df.at[idx[start - 1], "is_raw_valid"]
+                and abs(df.at[idx[start - 1], "opening_sanitized"] - stuck) < FROZEN_TOLERANCE_KM
+            ):
+                start -= 1
+            before = [p for p in valid[: k - 1] if p < start]
+            if (
+                pa - start + 1 < 2
+                or stuck < FROZEN_TOLERANCE_KM  # a counter sitting at 0 was reset, not frozen
+                or not before
+                or _pair_rejected(df, idx[before[-1]], b, adjacent=False)
+            ):
+                k += 1
+                continue
+            for p in range(start, pa + 1):
+                df.at[idx[p], "anomaly_flags"] = df.at[idx[p], "anomaly_flags"] + ["frozen_odometer"]
+                df.at[idx[p], "is_raw_valid"] = False
+            valid = [p for p in valid if not start <= p <= pa]
+            k = valid.index(pb)
 
 
 def _compute_boundary_gaps(df: pd.DataFrame) -> pd.Series:
@@ -305,6 +376,7 @@ def resolve(df_clean: pd.DataFrame, *, source_table: str) -> pd.DataFrame:
     ]
     df = df_clean[cols].sort_values(["Base License Plate", "Report Date"]).reset_index(drop=True)
     df = _sanitize(df)
+    _mark_frozen_stretches(df)
     df["boundary_gap_distance"] = _compute_boundary_gaps(df)
 
     df["opening_odometer_clean"] = np.nan

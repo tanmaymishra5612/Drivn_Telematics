@@ -10,7 +10,15 @@ export interface FleetOdometerTotal {
 
 export type Scope = "all" | "Bus" | "Truck" | "customers"
 export type Category = "all" | "Bus" | "Truck"
-export type CustomerName = "FreshBus" | "ZingBus" | "BillionE" | "AVG LOGISTICS" | "SWITCHLABS"
+export type CustomerName =
+  | "FreshBus"
+  | "ZingBus"
+  | "BillionE"
+  | "AVG LOGISTICS"
+  | "SWITCHLABS"
+  | "Purple Mobility"
+  | "Enviiirowheels"
+  | "Flytta"
 export type CrosstabCustomer = "All" | CustomerName
 
 export interface KpiSummary {

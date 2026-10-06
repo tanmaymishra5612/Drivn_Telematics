@@ -332,3 +332,101 @@ def test_boundary_gap_limit_is_per_calendar_day():
     )
     row = _resolved_row(resolve(rejected, source_table="test"), "2026-07-05")
     assert pd.isna(row["boundary_gap_distance"])
+
+
+def test_frozen_counter_catch_up_is_judged_over_the_whole_stretch():
+    """AP39WN7281-style: the counter repeats 84,481 km as its Opening for a
+    week while the bus drives, then catches up +4,776 km overnight. On that
+    one night the jump is impossible; over the frozen stretch it is ~700
+    km/day, so the stretch is interpolated from the anchor before it to the
+    catch-up, split by each day's Distance."""
+    df = pd.DataFrame(
+        [
+            _row("FROZEN", "2026-07-07", 620.0, 83500.00, 84481.00),
+            _row("FROZEN", "2026-07-08", 770.0, 84481.00, 84699.89),
+            _row("FROZEN", "2026-07-09", 610.0, 84481.00, 84674.85),
+            _row("FROZEN", "2026-07-10", 830.0, 84481.00, 84481.00),
+            _row("FROZEN", "2026-07-11", 620.0, 84481.00, 84843.74),
+            _row("FROZEN", "2026-07-12", 720.0, 87900.00, 88620.00),
+        ]
+    )
+    resolved = resolve(df, source_table="test")
+    frozen = resolved[resolved["report_date"].between(dt.date(2026, 7, 8), dt.date(2026, 7, 11))]
+    assert (frozen["fill_method"] == "INTERPOLATED").all()
+    assert frozen["anomaly_flags"].map(lambda f: "frozen_odometer" in f).all()
+    assert frozen["distance_by_odometer"].sum() == pytest.approx(87900.00 - 84481.00)
+    # Split by Distance: the 830 km day gets more than the 610 km day.
+    assert _resolved_row(resolved, "2026-07-10")["distance_by_odometer"] > _resolved_row(
+        resolved, "2026-07-09"
+    )["distance_by_odometer"]
+    for date in ("2026-07-07", "2026-07-12"):
+        assert _resolved_row(resolved, date)["fill_method"] == "RAW_VALID"
+
+
+def test_frozen_stretch_across_a_bad_day_is_judged_over_the_whole_stretch():
+    """AP39WN7322-style: frozen days, then a bad day, then the catch-up --
+    the bracket across the bad day alone is impossible, the whole stretch
+    is not."""
+    df = pd.DataFrame(
+        [
+            _row("FROZEN2", "2026-07-04", 800.0, 85300.00, 86124.25),
+            _row("FROZEN2", "2026-07-05", 430.0, 86124.25, 86124.25),
+            _row("FROZEN2", "2026-07-06", 835.0, 86124.25, 86124.25),
+            _row("FROZEN2", "2026-07-07", 790.0, 86124.25, 86124.25),
+            _row("FROZEN2", "2026-07-08", 360.0, 86124.25, 86124.25),
+            _row("FROZEN2", "2026-07-09", 920.0, None, None),
+            _row("FROZEN2", "2026-07-10", 530.0, 89525.50, 89887.29),
+        ]
+    )
+    resolved = resolve(df, source_table="test")
+    stretch = resolved[resolved["report_date"].between(dt.date(2026, 7, 5), dt.date(2026, 7, 9))]
+    assert (stretch["fill_method"] == "INTERPOLATED").all()
+    assert stretch["distance_by_odometer"].sum() == pytest.approx(89525.50 - 86124.25)
+
+
+def test_rebase_after_a_moving_counter_is_still_rejected():
+    """DL1PD9284-style: the counter moves normally, then jumps +19,783 km
+    overnight to a new base. No frozen run precedes it, so the jump stays
+    unbilled and every day stays RAW_VALID."""
+    df = pd.DataFrame(
+        [
+            _row("REBASE", "2026-09-07", 450.63, 63115.52, 63566.15),
+            _row("REBASE", "2026-09-08", 463.73, 63724.91, 64188.64),
+            _row("REBASE", "2026-09-09", 1.07, 64226.92, 64227.99),
+            _row("REBASE", "2026-09-10", 173.77, 84010.68, 84185.07),
+        ]
+    )
+    resolved = resolve(df, source_table="test")
+    assert (resolved["fill_method"] == "RAW_VALID").all()
+    assert pd.isna(_resolved_row(resolved, "2026-09-10")["boundary_gap_distance"])
+
+
+def test_frozen_stretch_that_is_still_too_fast_is_left_alone():
+    """A repeated Opening followed by a jump that is impossible even over
+    the whole stretch is a re-base, not a catch-up: nothing changes."""
+    df = pd.DataFrame(
+        [
+            _row("FASTFROZEN", "2026-07-01", 700.0, 1000.00, 1700.00),
+            _row("FASTFROZEN", "2026-07-02", 700.0, 1700.00, 1700.00),
+            _row("FASTFROZEN", "2026-07-03", 700.0, 1700.00, 1700.00),
+            _row("FASTFROZEN", "2026-07-04", 700.0, 50000.00, 50700.00),
+        ]
+    )
+    resolved = resolve(df, source_table="test")
+    assert (resolved["fill_method"] == "RAW_VALID").all()
+    assert not resolved["anomaly_flags"].map(lambda f: "frozen_odometer" in f).any()
+
+
+def test_counter_repeating_zero_is_a_reset_not_a_freeze():
+    """MH02GS5196-style: the counter restarts at 0 every day. Repeated
+    zero Openings are not a frozen counter to interpolate across."""
+    df = pd.DataFrame(
+        [
+            _row("ZERORESET", "2026-09-12", None, 0.00, 43.76),
+            _row("ZERORESET", "2026-09-13", None, 0.00, 48.54),
+            _row("ZERORESET", "2026-09-14", None, 0.00, 52.49),
+            _row("ZERORESET", "2026-09-15", None, 2892.54, 3088.82),
+        ]
+    )
+    resolved = resolve(df, source_table="test")
+    assert not resolved["anomaly_flags"].map(lambda f: "frozen_odometer" in f).any()

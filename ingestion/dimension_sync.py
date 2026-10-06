@@ -43,6 +43,11 @@ CUSTOMER_TAGS = {
     "BILLIONE": "BillionE",
     "AVG LOGISTICS": "AVG LOGISTICS",
     "SWITCHLABS": "SWITCHLABS",
+    "PURPLE MOBILITY": "Purple Mobility",
+    "PURPLE": "Purple Mobility",
+    "ENVIIIROWHEELS": "Enviiirowheels",
+    "ENVIIIRO": "Enviiirowheels",
+    "FLYTTA": "Flytta",
 }
 
 # Default dim_customer attributes. Only used to fill a customer that's new or
@@ -54,6 +59,9 @@ CUSTOMER_DEFAULTS = {
     "BillionE": {"oem": "TATA (Truck)", "routes_description": "Rajasthan - Surat"},
     "AVG LOGISTICS": {"oem": "IPL", "routes_description": None},
     "SWITCHLABS": {"oem": "TATA", "routes_description": None},
+    "Purple Mobility": {"oem": "Ashok Leyland / Switch (Bus)", "routes_description": None},
+    "Enviiirowheels": {"oem": "SAINI (Truck)", "routes_description": None},
+    "Flytta": {"oem": "IPL / ELECTRIQ (Truck)", "routes_description": None},
 }
 
 VEHICLE_COLUMNS = [

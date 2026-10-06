@@ -24,6 +24,8 @@ GOOD_ROWS = [
     ["Freshbus ", 19270.83, 10, 231000],
     ["Switchlabs", 13500, 10.5, 162000],
     ["BillionE", 16320, 0, 195840],
+    ["Flytta", 12000, 15, 144000],
+    ["Enviiiro", 17083.33, 12, 205000],
     ["Neeta", "TBD", "TBD", "TBD"],
 ]
 
@@ -34,6 +36,8 @@ def test_reads_only_billed_customers(tmp_path):
         "ZingBus": {"monthly_available_km": 15833.33, "excess_km_rate": 18.96},
         "FreshBus": {"monthly_available_km": 19270.83, "excess_km_rate": 10.0},
         "SWITCHLABS": {"monthly_available_km": 13500.0, "excess_km_rate": 10.5},
+        "Flytta": {"monthly_available_km": 12000.0, "excess_km_rate": 15.0},
+        "Enviiirowheels": {"monthly_available_km": 17083.33, "excess_km_rate": 12.0},
     }
 
 

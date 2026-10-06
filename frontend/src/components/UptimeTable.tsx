@@ -39,9 +39,21 @@ export function UptimeTable({ range, customer }: { range: DateRange; customer: C
     }
   }, [customer, range.start, range.end])
 
+  const [search, setSearch] = useState("")
+
   const rows = useMemo(() => {
     if (!data) return []
-    const copy = [...data.vehicles]
+    let list = data.vehicles
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      list = list.filter(
+        (v) =>
+          v.vehicle_number.toLowerCase().includes(q) ||
+          v.customer_name.toLowerCase().includes(q) ||
+          v.vehicle_model.toLowerCase().includes(q)
+      )
+    }
+    const copy = [...list]
     copy.sort((a, b) => {
       const av = a[sortKey]
       const bv = b[sortKey]
@@ -53,7 +65,7 @@ export function UptimeTable({ range, customer }: { range: DateRange; customer: C
       return sortDir * (an - bn)
     })
     return copy
-  }, [data, sortKey, sortDir])
+  }, [data, search, sortKey, sortDir])
 
   function headerClick(key: SortKey) {
     if (sortKey === key) {
@@ -83,6 +95,23 @@ export function UptimeTable({ range, customer }: { range: DateRange; customer: C
       <div className="panel-header">Vehicle Uptime Calendar</div>
       <div className="panel-body">
         <div className="uptime-toolbar">
+          <div style={{ position: "relative", minWidth: "240px", maxWidth: "340px" }}>
+            <input
+              type="search"
+              placeholder="Search plate, model, customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.4rem 0.7rem",
+                borderRadius: "6px",
+                border: "1px solid var(--border-strong)",
+                background: "var(--bg-surface)",
+                color: "var(--text-primary)",
+                fontSize: "0.825rem",
+              }}
+            />
+          </div>
           <div className="uptime-export-actions">
             <button className="btn-action" disabled={exporting} onClick={() => handleExport()}>
               {exporting ? "Exporting…" : "⬇️ Export"}

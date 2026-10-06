@@ -1,4 +1,4 @@
-import type { CrosstabCustomer } from "../api/types"
+import type { CrosstabCustomer, CustomerName } from "../api/types"
 import { ALL_CUSTOMERS } from "./CustomerCharts/colors"
 
 /** Shared pill-button customer picker -- extracted from the near-identical
@@ -8,12 +8,14 @@ export function CustomerSelector({
   value,
   onChange,
   includeAll = true,
+  customers = ALL_CUSTOMERS,
 }: {
   value: CrosstabCustomer
   onChange: (c: CrosstabCustomer) => void
   includeAll?: boolean
+  customers?: CustomerName[]
 }) {
-  const options: CrosstabCustomer[] = includeAll ? ["All", ...ALL_CUSTOMERS] : ALL_CUSTOMERS
+  const options: CrosstabCustomer[] = includeAll ? ["All", ...customers] : customers
 
   return (
     <div className="customer-nav">

@@ -86,9 +86,9 @@ def test_untagged_new_plate_is_skipped_with_warning():
 
 
 def test_unknown_tag_is_not_turned_into_a_customer():
-    plan = _plan([], {"CHASSIS6626": _ev("CHASSIS6626", "FLYTTA")})
+    plan = _plan([], {"CHASSIS6626": _ev("CHASSIS6626", "UNKNOWN_TAG")})
     assert plan.rows.empty
-    assert any("FLYTTA" in i for i in plan.issues)
+    assert any("UNKNOWN_TAG" in i for i in plan.issues)
 
 
 def test_existing_vehicle_that_lost_its_tag_keeps_customer_and_stays_active():
