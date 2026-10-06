@@ -65,7 +65,7 @@ export function CustomerCard({ customer }: { customer: CustomerProfile }) {
         <div>
           <div className="stat-item-label">Active Days Avg</div>
           <div className="stat-item-val">
-            {c.active_days_avg.toFixed(1)} / {c.total_days_avg.toFixed(0)} d
+            {c.active_days_avg.toFixed(1)} / {c.total_days_avg < 10 ? c.total_days_avg.toFixed(1) : c.total_days_avg.toFixed(0)} d
           </div>
         </div>
         <div>

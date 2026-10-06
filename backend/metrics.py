@@ -311,7 +311,7 @@ def resolve_total_days(
     if pd.notna(install):
         effective_start = max(window_start, min(pd.Timestamp(install), row["first_date"]))
         return float((end_date - effective_start).days + 1)
-    if row["vehicle_type"] == "Bus":
+    if row.get("vehicle_type") == "Bus" and row.get("Customer") in FIXED_FLEET_SIZE:
         return observation_days
     return float((end_date - row["first_date"]).days + 1)
 
